@@ -1,2 +1,3 @@
-# Multithreading in JAVA 🦄 
-Now how cool is that? *wink wink
+# Multithreading in Java 🦄🦄🦄
+---
+Now how cool is that? *wink wink*
