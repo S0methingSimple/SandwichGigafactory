@@ -39,12 +39,12 @@ public class SandwichManager {
         return false;
     }
 
-    // Initialize the buffers and their producer/consumer methods
-    static Bread[] breadBuffer;
-    static Egg[] eggBuffer;
+    // Initialize the circular buffers and their producer/consumer methods
+    static volatile Bread[] breadBuffer;
+    static volatile Egg[] eggBuffer;
     private static final Object breadBufferLock = new Object(), eggBufferLock = new Object();
-    static int breadBufferFront = 0, breadBufferBack = 0, breadBufferItemCount = 0;
-    static int eggBufferFront = 0, eggBufferBack = 0, eggBufferItemCount = 0;
+    static volatile int breadBufferFront = 0, breadBufferBack = 0, breadBufferItemCount = 0;
+    static volatile int eggBufferFront = 0, eggBufferBack = 0, eggBufferItemCount = 0;
     static void putBread(Bread bread) {
         synchronized (breadBufferLock) {
             while (breadBufferItemCount == breadBuffer.length){
