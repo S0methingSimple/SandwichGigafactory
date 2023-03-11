@@ -1,3 +1,7 @@
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
 public class SandwichManager {
     static int n_sandwiches,
             bread_capacity,
@@ -5,12 +9,13 @@ public class SandwichManager {
             n_bread_makers,
             n_egg_makers,
             n_sandwich_packers,
-            bread_rate, egg_rate,
+            bread_rate, 
+            egg_rate,
             packing_rate;
 
+    // Synchronized methods to get permission to make bread, egg, or sandwich
     static volatile int requiredBread = 0, requiredEgg = 0, requiredSandwich = 0;
-    static final Object allocatorMonitor = new Object();
-
+    static final Object allocatorMonitor = new Object(); // Monitor for the allocating ingredients to the packers
     static synchronized boolean makeBread() {
         if (requiredBread > 0) {
             requiredBread--;
@@ -33,6 +38,7 @@ public class SandwichManager {
         return false;
     }
 
+    // Initialize the buffers and their producer/consumer methods
     static volatile Bread[] breadBuffer;
     static volatile Egg[] eggBuffer;
     private static final Object breadBufferLock = new Object(), eggBufferLock = new Object();
@@ -94,6 +100,7 @@ public class SandwichManager {
         }
     }
 
+    // Initialize the log builder 
     static volatile StringBuilder str = new StringBuilder();
     private static final Object strLock = new Object();
     static void writeToLog(String s) {
@@ -106,28 +113,40 @@ public class SandwichManager {
     public static void main(String[] args) {
         
         // Read the command line arguments
-        // n_sandwiches = Integer.parseInt(args[0]);
-        // bread_capacity = Integer.parseInt(args[1]);
-        // egg_capacity = Integer.parseInt(args[2]);
-        // n_bread_makers = Integer.parseInt(args[3]);
-        // n_egg_makers = Integer.parseInt(args[4]);
-        // n_sandwich_packers = Integer.parseInt(args[5]);
-        // bread_rate = Integer.parseInt(args[6]);
-        // egg_rate = Integer.parseInt(args[7]);
-        // packing_rate = Integer.parseInt(args[8]);
+        n_sandwiches = Integer.parseInt(args[0]);
+        bread_capacity = Integer.parseInt(args[1]);
+        egg_capacity = Integer.parseInt(args[2]);
+        n_bread_makers = Integer.parseInt(args[3]);
+        n_egg_makers = Integer.parseInt(args[4]);
+        n_sandwich_packers = Integer.parseInt(args[5]);
+        bread_rate = Integer.parseInt(args[6]);
+        egg_rate = Integer.parseInt(args[7]);
+        packing_rate = Integer.parseInt(args[8]);
 
         // Test inputs
-        n_sandwiches = 10;
-        bread_capacity = 5;
-        egg_capacity = 5;
-        n_bread_makers = 2;
-        n_egg_makers = 2;
-        n_sandwich_packers = 2;
-        bread_rate = 1;
-        egg_rate = 1;
-        packing_rate = 1;
+        // n_sandwiches = 12;
+        // bread_capacity = 10;
+        // egg_capacity = 15;
+        // n_bread_makers = 2;
+        // n_egg_makers = 15;
+        // n_sandwich_packers = 2;
+        // bread_rate = 1;
+        // egg_rate = 1;
+        // packing_rate = 1;
 
-        // Initialize the total mutexes
+        // Write the inputs to the log
+        String osNewline = System.getProperty("line.separator");
+        str.append("sandwiches: " + n_sandwiches + osNewline);
+        str.append("bread capacity: " + bread_capacity + osNewline);
+        str.append("egg capacity: " + egg_capacity + osNewline);
+        str.append("bread makers: " + n_bread_makers + osNewline);
+        str.append("egg makers: " + n_egg_makers + osNewline);
+        str.append("sandwich packers: " + n_sandwich_packers + osNewline);
+        str.append("bread rate: " + bread_rate + osNewline);
+        str.append("egg rate: " + egg_rate + osNewline);
+        str.append("packing rate: " + packing_rate + osNewline + osNewline);
+
+        // Initialize the total required ingredients
         requiredBread = n_sandwiches * 2;
         requiredEgg = n_sandwiches;
         requiredSandwich = n_sandwiches;
@@ -135,58 +154,44 @@ public class SandwichManager {
         // Initialize the buffers
         breadBuffer = new Bread[bread_capacity];
         eggBuffer = new Egg[egg_capacity];
-        
-        // Write the inputs to the log
-        String newLine = System.getProperty("line.separator");
-        str.append("sandwiches: " + n_sandwiches + newLine);
-        str.append("bread capacity: " + bread_capacity + newLine);
-        str.append("egg capacity: " + egg_capacity + newLine);
-        str.append("bread makers: " + n_bread_makers + newLine);
-        str.append("egg makers: " + n_egg_makers + newLine);
-        str.append("sandwich packers: " + n_sandwich_packers + newLine);
-        str.append("bread rate: " + bread_rate + newLine);
-        str.append("egg rate: " + egg_rate + newLine);
-        str.append("packing rate: " + packing_rate + newLine + newLine);
 
         // Create the threads
         BreadMachine[] breadMachines = new BreadMachine[n_bread_makers];
         EggMachine[] eggMachines = new EggMachine[n_egg_makers];
         SandwichMachine[] packingMachines = new SandwichMachine[n_sandwich_packers];
 
+        // Start the threads
         for (int i = 0; i < n_bread_makers; i++) {
             breadMachines[i] = new BreadMachine(i, bread_rate);
             breadMachines[i].start();
         }
-
         for (int i = 0; i < n_egg_makers; i++) {
             eggMachines[i] = new EggMachine(i, egg_rate);
             eggMachines[i].start();
         }
-
         for (int i = 0; i < n_sandwich_packers; i++) {
             packingMachines[i] = new SandwichMachine(i, packing_rate);
             packingMachines[i].start();
         }
 
-        for (Thread t : breadMachines) {
+        // Wait for the threads to finish
+        for (Thread bm : breadMachines) {
             try {
-                t.join();
+                bm.join();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-
-        for (Thread t : eggMachines) {
+        for (Thread em : eggMachines) {
             try {
-                t.join();
+                em.join();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-
-        for (Thread t : packingMachines) {
+        for (Thread pm : packingMachines) {
             try {
-                t.join();
+                pm.join();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -197,6 +202,34 @@ public class SandwichManager {
         System.out.println("Sandwiches made: " + (n_sandwiches - requiredSandwich));
         System.out.println("Bread buffer: " + breadBufferItemCount);
         System.out.println("Egg buffer: " + eggBufferItemCount);
+
+        // Get the production summary
+        System.out.println("Prdouction Summary:");
+        str.append(osNewline + "summary:" + osNewline);
+        for (BreadMachine bm : breadMachines) {
+            str.append(bm.getSummary() + osNewline);
+            System.out.println(" - " + bm.getSummary());
+        }
+        for (EggMachine em : eggMachines) {
+            str.append(em.getSummary() + osNewline);
+            System.out.println(" - " + em.getSummary());
+        }
+        for (SandwichMachine sm : packingMachines) {
+            str.append(sm.getSummary() + osNewline);
+            System.out.println(" - " + sm.getSummary());
+        }
+
+        // Write the log to a file
+        try {
+            File file = new File("./log.txt");
+            FileWriter fw = new FileWriter(file);
+            fw.write(str.toString());
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("\n\nActual Logs:");
+        System.out.println(str.toString());
     }
 
     static void gowork(int n) {
@@ -241,6 +274,9 @@ class BreadMachine extends Thread {
         }
     }
 
+    public String getSummary() {
+        return threadName + " makes " + breadMade;
+    }
 }
 
 class Egg {
@@ -272,6 +308,10 @@ class EggMachine extends Thread {
             SandwichManager.gowork(rate);
             SandwichManager.putEgg(new Egg(eggMade++, threadName));
         }
+    }
+
+    public String getSummary() {
+        return threadName + " makes " + eggMade;
     }
 
 }
@@ -311,5 +351,9 @@ class SandwichMachine extends Thread {
             SandwichManager.writeToLog(log + System.getProperty("line.separator"));
         }
         
+    }
+
+    public String getSummary() {
+        return threadName + " makes " + sandwichesMade;
     }
 }
