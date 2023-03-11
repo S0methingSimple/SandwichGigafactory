@@ -9,41 +9,28 @@ public class SandwichManager {
             packing_rate;
 
     static volatile int requiredBread = 0, requiredEgg = 0, requiredSandwich = 0;
-    private static final Object breadLock = new Object(), eggLock = new Object(), sandwichLock = new Object(), allocatorLock = new Object();
-    static boolean makeBread() {
-        synchronized (breadLock) {
-            if (requiredBread > 0) {
-                requiredBread--;
-                return true;
-            } 
-            return false;
-        }
+    static final Object allocatorMonitor = new Object();
+
+    static synchronized boolean makeBread() {
+        if (requiredBread > 0) {
+            requiredBread--;
+            return true;
+        } 
+        return false;
     }
-    static boolean makeEgg() {
-        synchronized (eggLock) {
-            if (requiredEgg > 0) {
-                requiredEgg--;
-                return true;
-            } 
-            return false;
-        }
+    static synchronized boolean makeEgg() {
+        if (requiredEgg > 0) {
+            requiredEgg--;
+            return true;
+        } 
+        return false;
     }
-    static boolean makeSandwich() {
-        synchronized (sandwichLock) {
-            if (requiredSandwich > 0) {
-                requiredSandwich--;
-                return true;
-            } 
-            return false;
-        }
-    }
-    static Ingredients allocateIngredients() {
-        synchronized (allocatorLock) {
-            Bread top = getBread();
-            Bread bottom = getBread();
-            return new Ingredients(top, bottom);
-        }
-        
+    static synchronized boolean makeSandwich() {
+        if (requiredSandwich > 0) {
+            requiredSandwich--;
+            return true;
+        } 
+        return false;
     }
 
     static volatile Bread[] breadBuffer;
@@ -59,10 +46,9 @@ public class SandwichManager {
             }
             breadBuffer[breadBufferBack] = bread;
             breadBufferBack = (breadBufferBack + 1) % breadBuffer.length;
-            String log = String.format(" %s puts bread %d", bread.threadName, bread.id);
-            System.out.println("Item count: " + breadBufferItemCount + log);
+            String log = String.format("%s puts bread %d", bread.threadName, bread.id);
             SandwichManager.writeToLog(log + System.getProperty("line.separator"));
-            breadBufferItemCount++;
+            System.out.println(log + " | Item count: " + ++breadBufferItemCount);
             breadBufferLock.notifyAll(); 
         }
     }
@@ -74,8 +60,7 @@ public class SandwichManager {
             }
             Bread bread = breadBuffer[breadBufferFront];
             breadBufferFront = (breadBufferFront + 1) % breadBuffer.length;
-            System.out.println("Item count: " + breadBufferItemCount + ", Consuming " + bread);
-            breadBufferItemCount--;
+            System.out.println("\t Al consumes " + bread + " | Item count: " + --breadBufferItemCount );
             breadBufferLock.notifyAll();
             return bread;
         }
@@ -165,7 +150,11 @@ public class SandwichManager {
             }
         }
 
-        System.out.println("completed");
+        // Print out completion status with the number of sandwiches made and buffer status
+        System.out.println("------------------------------\nCompletion status: " + (requiredSandwich == 0 ? "SUCCESS" : "FAILURE") );
+        System.out.println("Sandwiches made: " + (n_sandwiches - requiredSandwich));
+        System.out.println("Bread buffer: " + breadBufferItemCount);
+        System.out.println("Egg buffer: " + eggBufferItemCount);
     }
 
     static void gowork(int n) {
@@ -178,15 +167,6 @@ public class SandwichManager {
     }
 }
 
-class Ingredients {
-    Bread top;
-    Bread bottom;
-    public Ingredients(Bread top, Bread bottom) {
-        this.top = top;
-        this.bottom = bottom;
-    }
-}
-
 class Bread {
     int id;
     String threadName;
@@ -196,7 +176,7 @@ class Bread {
     }
     @Override
     public String toString() {
-        return "bread " + id;
+        return "bread " + id + " from " + threadName;
     }
 
 }
@@ -215,8 +195,7 @@ class BreadMachine extends Thread {
     public void run() {
         while (SandwichManager.makeBread()) {
             SandwichManager.gowork(rate);
-            Bread bread = new Bread(breadMade++, threadName);
-            SandwichManager.putBread(bread);
+            SandwichManager.putBread(new Bread(breadMade++, threadName));
         }
     }
 
@@ -231,7 +210,7 @@ class Egg {
     }
     @Override
     public String toString() {
-        return "egg " + id;
+        return "egg " + id + " from " + threadName;
     }
 }
 
@@ -248,9 +227,14 @@ class SandwichMachine extends Thread {
     @Override
     public void run() {
         while (SandwichManager.makeSandwich()) {
+            Bread top;
+            Bread bottom;
+            synchronized (SandwichManager.allocatorMonitor) {
+                top = SandwichManager.getBread();
+                bottom = SandwichManager.getBread();
+            }
             SandwichManager.gowork(rate);
-            Ingredients ingredients = SandwichManager.allocateIngredients();
-            String log = String.format("%s packs sandwich %d with bread %d from %s and bread %d from %s ", threadName, sandwichesMade++, ingredients.top.id, ingredients.top.threadName, ingredients.bottom.id, ingredients.bottom.threadName);
+            String log = String.format("%s packs sandwich %d with bread %d from %s and bread %d from %s ", threadName, sandwichesMade++, top.id, top.threadName, bottom.id, bottom.threadName);
             System.out.println(log);
             SandwichManager.writeToLog(log + System.getProperty("line.separator"));
         }
