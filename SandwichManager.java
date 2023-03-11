@@ -15,7 +15,7 @@ public class SandwichManager {
             packing_rate;
 
     // Synchronized methods to get permission to make bread, egg, or sandwich
-    static volatile int requiredBread = 0, requiredEgg = 0, requiredSandwich = 0;
+    static int requiredBread = 0, requiredEgg = 0, requiredSandwich = 0;
     static final Object allocatorMonitor = new Object(); // Monitor for the allocating ingredients to the packers
     static synchronized boolean makeBread() {
         if (requiredBread > 0) {
@@ -40,11 +40,11 @@ public class SandwichManager {
     }
 
     // Initialize the buffers and their producer/consumer methods
-    static volatile Bread[] breadBuffer;
-    static volatile Egg[] eggBuffer;
+    static Bread[] breadBuffer;
+    static Egg[] eggBuffer;
     private static final Object breadBufferLock = new Object(), eggBufferLock = new Object();
-    static volatile int breadBufferFront = 0, breadBufferBack = 0, breadBufferItemCount = 0;
-    static volatile int eggBufferFront = 0, eggBufferBack = 0, eggBufferItemCount = 0;
+    static int breadBufferFront = 0, breadBufferBack = 0, breadBufferItemCount = 0;
+    static int eggBufferFront = 0, eggBufferBack = 0, eggBufferItemCount = 0;
     static void putBread(Bread bread) {
         synchronized (breadBufferLock) {
             while (breadBufferItemCount == breadBuffer.length){
