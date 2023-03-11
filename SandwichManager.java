@@ -3,6 +3,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 public class SandwichManager {
+    // Static variables
     static int n_sandwiches,
             bread_capacity,
             egg_capacity,
@@ -52,6 +53,8 @@ public class SandwichManager {
             }
             breadBuffer[breadBufferBack] = bread;
             breadBufferBack = (breadBufferBack + 1) % breadBuffer.length;
+
+            // Write to log file
             String log = String.format("%s puts bread %d", bread.threadName, bread.id);
             SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
             System.out.println(log + " | Item count: " + ++breadBufferItemCount);
@@ -66,6 +69,7 @@ public class SandwichManager {
             }
             Bread bread = breadBuffer[breadBufferFront];
             breadBufferFront = (breadBufferFront + 1) % breadBuffer.length;
+            
             System.out.println("\t SM consumes " + bread + " | Item count: " + --breadBufferItemCount );
             breadBufferLock.notifyAll();
             return bread;
@@ -80,6 +84,8 @@ public class SandwichManager {
             }
             eggBuffer[eggBufferBack] = egg;
             eggBufferBack = (eggBufferBack + 1) % eggBuffer.length;
+
+            // Write to log file
             String log = String.format("%s puts egg %d", egg.threadName, egg.id);
             SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
             System.out.println(log + " | Item count: " + ++eggBufferItemCount);
@@ -94,6 +100,7 @@ public class SandwichManager {
             }
             Egg egg = eggBuffer[eggBufferFront];
             eggBufferFront = (eggBufferFront + 1) % eggBuffer.length;
+
             System.out.println("\t SM consumes " + egg + " | Item count: " + --eggBufferItemCount );
             eggBufferLock.notifyAll();
             return egg;
@@ -213,16 +220,15 @@ public class SandwichManager {
         summary.append(osNewline + "summary:" + osNewline);
         for (BreadMachine bm : breadMachines) {
             summary.append(bm.getSummary() + osNewline);
-            System.out.println(" - " + bm.getSummary());
         }
         for (EggMachine em : eggMachines) {
             summary.append(em.getSummary() + osNewline);
-            System.out.println(" - " + em.getSummary());
         }
         for (SandwichMachine sm : packingMachines) {
             summary.append(sm.getSummary() + osNewline);
-            System.out.println(" - " + sm.getSummary());
         }
+
+        System.out.println(summary.toString());
         writeToLog(summary.toString(), true);
 
     }
@@ -240,15 +246,16 @@ public class SandwichManager {
 class Bread {
     int id;
     String threadName;
+
     public Bread(int id, String name) {
         this.id = id;
         this.threadName = name;
     }
+
     @Override
     public String toString() {
         return "bread " + id + " from " + threadName;
     }
-
 }
 
 class BreadMachine extends Thread {
@@ -264,7 +271,8 @@ class BreadMachine extends Thread {
     @Override
     public void run() {
         while (SandwichManager.makeBread()) {
-            SandwichManager.gowork(rate);
+            SandwichManager.gowork(rate); // Making bread...
+            // Put made bread into the buffer
             SandwichManager.putBread(new Bread(breadMade++, threadName));
         }
     }
@@ -277,10 +285,12 @@ class BreadMachine extends Thread {
 class Egg {
     int id;
     String threadName;
+
     public Egg(int id, String name) {
         this.id = id;
         this.threadName = name;
     }
+
     @Override
     public String toString() {
         return "egg " + id + " from " + threadName;
@@ -300,7 +310,8 @@ class EggMachine extends Thread {
     @Override
     public void run() {
         while (SandwichManager.makeEgg()) {
-            SandwichManager.gowork(rate);
+            SandwichManager.gowork(rate); // Making an egg...
+            // Put made egg into the buffer
             SandwichManager.putEgg(new Egg(eggMade++, threadName));
         }
     }
@@ -308,7 +319,6 @@ class EggMachine extends Thread {
     public String getSummary() {
         return threadName + " makes " + eggMade;
     }
-
 }
 
 class SandwichMachine extends Thread {
@@ -324,15 +334,18 @@ class SandwichMachine extends Thread {
     @Override
     public void run() {
         while (SandwichManager.makeSandwich()) {
-            Bread top;
+            // Get ingredients from the buffer [DEADLOCK PREVENTION]
+            Bread top, bottom;
             Egg egg;
-            Bread bottom;
+            // NOTE: synchronized block is used to ensure that the three get operations are atomic to prevent deadlock on ingredient allocation
             synchronized (SandwichManager.allocatorMonitor) {
                 top = SandwichManager.getBread();
                 egg = SandwichManager.getEgg();
                 bottom = SandwichManager.getBread();
             }
-            SandwichManager.gowork(rate);
+
+            SandwichManager.gowork(rate); // Packing sandwich...
+            // Write to log
             String log = String.format("%s packs sandwich %d with bread %d from %s and egg %d from %s and bread %d from %s ", 
                 threadName, 
                 sandwichesMade++, 
