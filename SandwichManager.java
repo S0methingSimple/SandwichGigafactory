@@ -55,9 +55,9 @@ public class SandwichManager {
             breadBufferBack = (breadBufferBack + 1) % breadBuffer.length;
 
             // Write to log file
-            String log = String.format("%s puts bread %d", bread.threadName, bread.id);
-            SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
-            System.out.println(log + " | Item count: " + ++breadBufferItemCount);
+            String log = String.format("%s puts bread %d%s", bread.threadName, bread.id, System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log, true);
+            ++breadBufferItemCount;
             breadBufferLock.notifyAll(); 
         }
     }
@@ -69,8 +69,8 @@ public class SandwichManager {
             }
             Bread bread = breadBuffer[breadBufferFront];
             breadBufferFront = (breadBufferFront + 1) % breadBuffer.length;
-            
-            System.out.println("\t SM consumes " + bread + " | Item count: " + --breadBufferItemCount );
+
+            --breadBufferItemCount;
             breadBufferLock.notifyAll();
             return bread;
         }
@@ -86,9 +86,9 @@ public class SandwichManager {
             eggBufferBack = (eggBufferBack + 1) % eggBuffer.length;
 
             // Write to log file
-            String log = String.format("%s puts egg %d", egg.threadName, egg.id);
-            SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
-            System.out.println(log + " | Item count: " + ++eggBufferItemCount);
+            String log = String.format("%s puts egg %d%s", egg.threadName, egg.id, System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log, true);
+            ++eggBufferItemCount;
             eggBufferLock.notifyAll(); 
         }
     }
@@ -101,7 +101,7 @@ public class SandwichManager {
             Egg egg = eggBuffer[eggBufferFront];
             eggBufferFront = (eggBufferFront + 1) % eggBuffer.length;
 
-            System.out.println("\t SM consumes " + egg + " | Item count: " + --eggBufferItemCount );
+            --eggBufferItemCount;
             eggBufferLock.notifyAll();
             return egg;
         }
@@ -130,17 +130,6 @@ public class SandwichManager {
         bread_rate = Integer.parseInt(args[6]);
         egg_rate = Integer.parseInt(args[7]);
         packing_rate = Integer.parseInt(args[8]);
-
-        // Test inputs
-        // n_sandwiches = 12;
-        // bread_capacity = 10;
-        // egg_capacity = 15;
-        // n_bread_makers = 2;
-        // n_egg_makers = 15;
-        // n_sandwich_packers = 2;
-        // bread_rate = 1;
-        // egg_rate = 1;
-        // packing_rate = 1;
 
         // Write the inputs to the log
         String osNewline = System.getProperty("line.separator");
@@ -208,15 +197,13 @@ public class SandwichManager {
         }
 
         // Print out completion status with the number of sandwiches made and buffer status
-        System.out.println("------------------------------\nCompletion status: " + (requiredSandwich == 0 ? "SUCCESS" : "FAILURE") );
+        System.out.println("------------------------------\nJob status: " + (requiredSandwich == 0 ? "SUCCESS" : "FAILURE") );
         System.out.println("Sandwiches made: " + (n_sandwiches - requiredSandwich));
         System.out.println("Bread buffer: " + breadBufferItemCount);
         System.out.println("Egg buffer: " + eggBufferItemCount);
 
         // Get the production summary
-        System.out.println("Prdouction Summary:");
         StringBuilder summary = new StringBuilder();
-
         summary.append(osNewline + "summary:" + osNewline);
         for (BreadMachine bm : breadMachines) {
             summary.append(bm.getSummary() + osNewline);
@@ -346,7 +333,7 @@ class SandwichMachine extends Thread {
 
             SandwichManager.gowork(rate); // Packing sandwich...
             // Write to log
-            String log = String.format("%s packs sandwich %d with bread %d from %s and egg %d from %s and bread %d from %s ", 
+            String log = String.format("%s packs sandwich %d with bread %d from %s and egg %d from %s and bread %d from %s%s", 
                 threadName, 
                 sandwichesMade++, 
                 top.id, 
@@ -354,9 +341,9 @@ class SandwichMachine extends Thread {
                 egg.id,
                 egg.threadName,
                 bottom.id, 
-                bottom.threadName);
-            System.out.println(log);
-            SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
+                bottom.threadName,
+                System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log, true);
         }
         
     }
