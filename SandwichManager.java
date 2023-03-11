@@ -100,17 +100,14 @@ public class SandwichManager {
         }
     }
 
-    // Initialize the log builder 
-    private static final Object logLock = new Object();
-    static void writeToLog(String s, boolean append) {
-        synchronized (logLock) {
-            try {
-                FileWriter fw = new FileWriter(new File("./log.txt"), append);
-                fw.write(s);
-                fw.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+    // Synchronized method to write to the log 
+    static synchronized void writeToLog(String s, boolean append) {
+        try {
+            FileWriter fw = new FileWriter(new File("./log.txt"), append);
+            fw.write(s);
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
