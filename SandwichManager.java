@@ -53,7 +53,7 @@ public class SandwichManager {
             breadBuffer[breadBufferBack] = bread;
             breadBufferBack = (breadBufferBack + 1) % breadBuffer.length;
             String log = String.format("%s puts bread %d", bread.threadName, bread.id);
-            SandwichManager.writeToLog(log + System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
             System.out.println(log + " | Item count: " + ++breadBufferItemCount);
             breadBufferLock.notifyAll(); 
         }
@@ -81,7 +81,7 @@ public class SandwichManager {
             eggBuffer[eggBufferBack] = egg;
             eggBufferBack = (eggBufferBack + 1) % eggBuffer.length;
             String log = String.format("%s puts egg %d", egg.threadName, egg.id);
-            SandwichManager.writeToLog(log + System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
             System.out.println(log + " | Item count: " + ++eggBufferItemCount);
             eggBufferLock.notifyAll(); 
         }
@@ -101,14 +101,18 @@ public class SandwichManager {
     }
 
     // Initialize the log builder 
-    static volatile StringBuilder str = new StringBuilder();
-    private static final Object strLock = new Object();
-    static void writeToLog(String s) {
-        synchronized (strLock) {
-            str.append(s);
+    private static final Object logLock = new Object();
+    static void writeToLog(String s, boolean append) {
+        synchronized (logLock) {
+            try {
+                FileWriter fw = new FileWriter(new File("./log.txt"), append);
+                fw.write(s);
+                fw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
-
 
     public static void main(String[] args) {
         
@@ -136,15 +140,17 @@ public class SandwichManager {
 
         // Write the inputs to the log
         String osNewline = System.getProperty("line.separator");
-        str.append("sandwiches: " + n_sandwiches + osNewline);
-        str.append("bread capacity: " + bread_capacity + osNewline);
-        str.append("egg capacity: " + egg_capacity + osNewline);
-        str.append("bread makers: " + n_bread_makers + osNewline);
-        str.append("egg makers: " + n_egg_makers + osNewline);
-        str.append("sandwich packers: " + n_sandwich_packers + osNewline);
-        str.append("bread rate: " + bread_rate + osNewline);
-        str.append("egg rate: " + egg_rate + osNewline);
-        str.append("packing rate: " + packing_rate + osNewline + osNewline);
+        String logHeader = String.format("%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s%d%s%s", 
+            "sandwiches: ", n_sandwiches, osNewline,
+            "bread capacity: ", bread_capacity, osNewline,
+            "egg capacity: ", egg_capacity, osNewline,
+            "bread makers: ", n_bread_makers, osNewline,
+            "egg makers: ", n_egg_makers, osNewline,
+            "sandwich packers: ", n_sandwich_packers, osNewline,
+            "bread rate: ", bread_rate, osNewline,
+            "egg rate: ", egg_rate, osNewline,
+            "packing rate: ", packing_rate, osNewline, osNewline);
+        writeToLog(logHeader, false);
 
         // Initialize the total required ingredients
         requiredBread = n_sandwiches * 2;
@@ -205,31 +211,23 @@ public class SandwichManager {
 
         // Get the production summary
         System.out.println("Prdouction Summary:");
-        str.append(osNewline + "summary:" + osNewline);
+        StringBuilder summary = new StringBuilder();
+
+        summary.append(osNewline + "summary:" + osNewline);
         for (BreadMachine bm : breadMachines) {
-            str.append(bm.getSummary() + osNewline);
+            summary.append(bm.getSummary() + osNewline);
             System.out.println(" - " + bm.getSummary());
         }
         for (EggMachine em : eggMachines) {
-            str.append(em.getSummary() + osNewline);
+            summary.append(em.getSummary() + osNewline);
             System.out.println(" - " + em.getSummary());
         }
         for (SandwichMachine sm : packingMachines) {
-            str.append(sm.getSummary() + osNewline);
+            summary.append(sm.getSummary() + osNewline);
             System.out.println(" - " + sm.getSummary());
         }
+        writeToLog(summary.toString(), true);
 
-        // Write the log to a file
-        try {
-            File file = new File("./log.txt");
-            FileWriter fw = new FileWriter(file);
-            fw.write(str.toString());
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        System.out.println("\n\nActual Logs:");
-        System.out.println(str.toString());
     }
 
     static void gowork(int n) {
@@ -348,7 +346,7 @@ class SandwichMachine extends Thread {
                 bottom.id, 
                 bottom.threadName);
             System.out.println(log);
-            SandwichManager.writeToLog(log + System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log + System.getProperty("line.separator"), true);
         }
         
     }
