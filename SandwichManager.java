@@ -54,9 +54,6 @@ public class SandwichManager {
             breadBuffer[breadBufferBack] = bread;
             breadBufferBack = (breadBufferBack + 1) % breadBuffer.length;
 
-            // Write to log file
-            String log = String.format("%s puts bread %d%s", bread.threadName, bread.id, System.getProperty("line.separator"));
-            SandwichManager.writeToLog(log, true);
             ++breadBufferItemCount;
             breadBufferLock.notifyAll(); 
         }
@@ -85,9 +82,6 @@ public class SandwichManager {
             eggBuffer[eggBufferBack] = egg;
             eggBufferBack = (eggBufferBack + 1) % eggBuffer.length;
 
-            // Write to log file
-            String log = String.format("%s puts egg %d%s", egg.threadName, egg.id, System.getProperty("line.separator"));
-            SandwichManager.writeToLog(log, true);
             ++eggBufferItemCount;
             eggBufferLock.notifyAll(); 
         }
@@ -260,6 +254,8 @@ class BreadMachine extends Thread {
         while (SandwichManager.makeBread()) {
             SandwichManager.gowork(rate); // Making bread...
             // Put made bread into the buffer
+            String log = String.format("%s puts bread %d%s", threadName, breadMade, System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log, true);
             SandwichManager.putBread(new Bread(breadMade++, threadName));
         }
     }
@@ -299,6 +295,8 @@ class EggMachine extends Thread {
         while (SandwichManager.makeEgg()) {
             SandwichManager.gowork(rate); // Making an egg...
             // Put made egg into the buffer
+            String log = String.format("%s puts egg %d%s", threadName, eggMade, System.getProperty("line.separator"));
+            SandwichManager.writeToLog(log, true);
             SandwichManager.putEgg(new Egg(eggMade++, threadName));
         }
     }
