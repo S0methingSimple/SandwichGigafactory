@@ -60,9 +60,37 @@ public class SandwichManager {
             }
             Bread bread = breadBuffer[breadBufferFront];
             breadBufferFront = (breadBufferFront + 1) % breadBuffer.length;
-            System.out.println("\t Al consumes " + bread + " | Item count: " + --breadBufferItemCount );
+            System.out.println("\t SM consumes " + bread + " | Item count: " + --breadBufferItemCount );
             breadBufferLock.notifyAll();
             return bread;
+        }
+    }
+
+    static void putEgg(Egg egg) {
+        synchronized (eggBufferLock) {
+            while (eggBufferItemCount == eggBuffer.length){
+                // Wait for the buffer to be consumed, release the lock
+                try { eggBufferLock.wait(); } catch (InterruptedException e) {}
+            }
+            eggBuffer[eggBufferBack] = egg;
+            eggBufferBack = (eggBufferBack + 1) % eggBuffer.length;
+            String log = String.format("%s puts egg %d", egg.threadName, egg.id);
+            SandwichManager.writeToLog(log + System.getProperty("line.separator"));
+            System.out.println(log + " | Item count: " + ++eggBufferItemCount);
+            eggBufferLock.notifyAll(); 
+        }
+    }
+    static Egg getEgg() {
+        synchronized (eggBufferLock) {
+            while (eggBufferItemCount == 0) {
+                // Wait for the buffer to be filled, release the lock
+                try { eggBufferLock.wait(); } catch (InterruptedException e) {}
+            }
+            Egg egg = eggBuffer[eggBufferFront];
+            eggBufferFront = (eggBufferFront + 1) % eggBuffer.length;
+            System.out.println("\t SM consumes " + egg + " | Item count: " + --eggBufferItemCount );
+            eggBufferLock.notifyAll();
+            return egg;
         }
     }
 
@@ -122,11 +150,17 @@ public class SandwichManager {
 
         // Create the threads
         BreadMachine[] breadMachines = new BreadMachine[n_bread_makers];
+        EggMachine[] eggMachines = new EggMachine[n_egg_makers];
         SandwichMachine[] packingMachines = new SandwichMachine[n_sandwich_packers];
 
         for (int i = 0; i < n_bread_makers; i++) {
             breadMachines[i] = new BreadMachine(i, bread_rate);
             breadMachines[i].start();
+        }
+
+        for (int i = 0; i < n_egg_makers; i++) {
+            eggMachines[i] = new EggMachine(i, egg_rate);
+            eggMachines[i].start();
         }
 
         for (int i = 0; i < n_sandwich_packers; i++) {
@@ -135,6 +169,14 @@ public class SandwichManager {
         }
 
         for (Thread t : breadMachines) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        for (Thread t : eggMachines) {
             try {
                 t.join();
             } catch (InterruptedException e) {
@@ -214,6 +256,26 @@ class Egg {
     }
 }
 
+class EggMachine extends Thread {
+    private String threadName;
+    private int rate;
+    private int eggMade = 0;
+
+    public EggMachine(int id, int rate) {
+        this.threadName = "E" + id;
+        this.rate = rate;
+    }
+
+    @Override
+    public void run() {
+        while (SandwichManager.makeEgg()) {
+            SandwichManager.gowork(rate);
+            SandwichManager.putEgg(new Egg(eggMade++, threadName));
+        }
+    }
+
+}
+
 class SandwichMachine extends Thread {
     private String threadName;
     private int rate;
@@ -228,13 +290,23 @@ class SandwichMachine extends Thread {
     public void run() {
         while (SandwichManager.makeSandwich()) {
             Bread top;
+            Egg egg;
             Bread bottom;
             synchronized (SandwichManager.allocatorMonitor) {
                 top = SandwichManager.getBread();
+                egg = SandwichManager.getEgg();
                 bottom = SandwichManager.getBread();
             }
             SandwichManager.gowork(rate);
-            String log = String.format("%s packs sandwich %d with bread %d from %s and bread %d from %s ", threadName, sandwichesMade++, top.id, top.threadName, bottom.id, bottom.threadName);
+            String log = String.format("%s packs sandwich %d with bread %d from %s and egg %d from %s and bread %d from %s ", 
+                threadName, 
+                sandwichesMade++, 
+                top.id, 
+                top.threadName, 
+                egg.id,
+                egg.threadName,
+                bottom.id, 
+                bottom.threadName);
             System.out.println(log);
             SandwichManager.writeToLog(log + System.getProperty("line.separator"));
         }
